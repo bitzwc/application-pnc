@@ -1,0 +1,7 @@
+stop_distance: 2.2
+max_stop_deceleration: 6.0
+min_pass_s_distance: 3.0
+expand_s_distance: 2.0
+stop_strict_l_distance: 50.0
+stop_loose_l_distance: 60.0
+stop_timeout: 50.0

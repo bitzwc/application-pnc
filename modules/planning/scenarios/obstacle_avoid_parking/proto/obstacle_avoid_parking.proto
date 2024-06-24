@@ -1,0 +1,14 @@
+syntax = "proto2";
+
+package apollo.planning;
+
+message ObstacleAvoidParkingConfig {
+  // 车辆和停车点的距离小于这个值，进入该场景
+  optional double parking_spot_range_to_start = 1 [default = 20.0];
+
+  // 车辆和预停车点距离小于这个值，接近停车点阶段完成
+  optional double max_valid_stop_distance = 2 [default = 1.0];  // meter
+
+  // 离障碍物的距离小于这个值，进入该场景
+  optional double min_obstacle_distance = 3 [default = 1.0]; //米
+}

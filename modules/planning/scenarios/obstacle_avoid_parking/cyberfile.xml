@@ -1,0 +1,24 @@
+<package format="2">
+  <name>obstacle-avoid-parking</name>
+  <version>local</version>
+  <description>
+    自动躲避障碍物停车场景
+  </description>
+
+  <maintainer email="sample@sample.com">Apollo Developer</maintainer>
+  <license>Apache License 2.0</license>
+  <url type="website">https://www.apollo.auto/</url>
+  <url type="repository">https://github.com/ApolloAuto/apollo</url>
+  <url type="bugtracker">https://github.com/ApolloAuto/apollo/issues</url>
+
+  <type>module</type>
+  <src_path>//modules/planning/scenarios/obstacle_avoid_parking</src_path>
+  <builder>bazel</builder>
+
+  <depend type="binary" repo_name="cyber">cyber</depend>
+
+  <depend type="binary" repo_name="planning">planning</depend>
+
+
+  <depend>bazel-extend-tools</depend>
+</package>
