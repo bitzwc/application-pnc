@@ -40,9 +40,20 @@ bool ScenarioObstacleAvoidParking::Init(std::shared_ptr<DependencyInjector> inje
 // 修改借道绕行task使用的路径边界，原来用的是车道边界，这里调整为停车位的边界 boundary
 bool ScenarioObstacleAvoidParking::IsTransferable(const Scenario* const other_scenario, const Frame& frame) {
     // 1.是否有障碍物
-    AINFO << frame.reference_line_info().size();
-    // for (auto reference_line : frame.reference_line_info()) {
-    //     for (const auto* obstacle : reference_line.path_decision()->obstacles().Items()) {
+    AINFO << "参考线数量: " << frame.reference_line_info().size();
+    // const ReferenceLineInfo& reference_line_info = frame.reference_line_info().front();
+    AINFO << "障碍物数量:" << frame.obstacles().size();
+    for (auto obstacle : frame.obstacles()) {
+        AINFO << "障碍物ID:" << obstacle->Id() << "障碍物感知ID:" << obstacle->PerceptionId()
+              << "障碍物速度: " << obstacle->speed();
+    }
+    // 这里障碍物获取的逻辑是什么？参考线是什么数据结构？
+    int i = 0;
+    // for (const Obstacle* obstacle : reference_line_info.path_decision().obstacles().Items()) {
+    // AINFO << i++;
+
+    // AINFO << "障碍物ID: " << obstacle->PerceptionId();  // 这里指针可能是空值
+    // AINFO << "障碍物速度: " << obstacle->speed();       // 这里指针可能是空值
     //         if (obstacle->IsVirtual()) {
     //             continue;
     //         }
@@ -57,7 +68,6 @@ bool ScenarioObstacleAvoidParking::IsTransferable(const Scenario* const other_sc
     //             AINFO << "进入避障停车场景, ScenarioObstacleAvoidParking";
     //             return true;
     //         }
-    //     }
     // }
     return false;
 

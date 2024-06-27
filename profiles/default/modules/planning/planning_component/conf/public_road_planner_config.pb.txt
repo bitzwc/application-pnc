@@ -7,6 +7,10 @@ scenario {
     type: "EmergencyStopScenario"
 }
 scenario {
+    name: "OBSTACLE_AVOID_PARKING"
+    type: "ScenarioObstacleAvoidParking"
+}
+scenario {
     name: "BEST_PARKING"
     type: "BestParkingSpaceScenario"
 }
@@ -49,8 +53,4 @@ scenario {
 scenario {
     name: "LANE_FOLLOW"
     type: "LaneFollowScenario"
-}
-scenario {
-    name: "OBSTACLE_AVOID_PARKING"
-    type: "ScenarioObstacleAvoidParking"
 }
