@@ -8,6 +8,8 @@
     第一个阶段:靠近泊车位阶段
     通过获取best_parking_space.cc场景类中查找到的目标停车位，使用ExecuteTaskOnReferenceLine
     直到自车停止（速度小于一定的大小，并且位置接近参考线的停止墙），进入下一个stage
+
+    道路边界、停车位边界
 */
 namespace apollo {
 namespace planning {
