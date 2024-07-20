@@ -103,6 +103,8 @@ Status OpenSpaceRoiDecider::Process(Frame *frame) {
             AERROR << msg;
             return Status(ErrorCode::PLANNING_ERROR, msg);
         }
+        AINFO << "spot_vertices" << spot_vertices.at(0).DebugString() << "," << spot_vertices.at(1).DebugString() << ","
+              << spot_vertices.at(2).DebugString() << "," << spot_vertices.at(3).DebugString();
 
         SetOrigin(frame, spot_vertices);
 
@@ -385,6 +387,7 @@ void OpenSpaceRoiDecider::GetRoadBoundary(
         std::vector<double> *center_lane_s_right,
         std::vector<double> *left_lane_road_width,
         std::vector<double> *right_lane_road_width) {
+    // 停车位中心点s前后范围，默认都是15m
     double start_s = center_line_s - config_.roi_longitudinal_range_start();
     double end_s = center_line_s + config_.roi_longitudinal_range_end();
 
@@ -400,6 +403,7 @@ void OpenSpaceRoiDecider::GetRoadBoundary(
     while (check_point_s <= end_s) {
         hdmap::MapPathPoint check_point = nearby_path.GetSmoothPoint(check_point_s);
         double check_point_heading = check_point.heading();
+        // 当前检测点和上一个检测点的方向夹角是否大于最小分段角度0.15
         bool is_center_lane_heading_change
                 = std::abs(common::math::NormalizeAngle(check_point_heading - last_check_point_heading))
                 > config_.roi_line_segment_min_angle();
@@ -409,8 +413,9 @@ void OpenSpaceRoiDecider::GetRoadBoundary(
         // Check if the current center-lane checking-point is start point || end
         // point || or point with larger curvature. If yes, mark it as an anchor
         // point.
+        // 当前检测点是起点、终点、曲率突变点时，标记为锚点
         bool is_anchor_point = check_point_s == start_s || check_point_s == end_s || is_center_lane_heading_change;
-        // Add key points to the left-half boundary
+        // 添加关键点到左边界
         AddBoundaryKeyPoint(
                 nearby_path,
                 check_point_s,
@@ -422,7 +427,7 @@ void OpenSpaceRoiDecider::GetRoadBoundary(
                 left_lane_boundary,
                 center_lane_s_left,
                 left_lane_road_width);
-        // Add key points to the right-half boundary
+        // 添加关键点到右边界
         AddBoundaryKeyPoint(
                 nearby_path,
                 check_point_s,
@@ -444,6 +449,7 @@ void OpenSpaceRoiDecider::GetRoadBoundary(
 
     size_t left_point_size = left_lane_boundary->size();
     size_t right_point_size = right_lane_boundary->size();
+    // 将得到的左边界、右边界进行坐标平移和变换，变换到原点为停车位左前角为原点的坐标下
     for (size_t i = 0; i < left_point_size; i++) {
         left_lane_boundary->at(i) -= origin_point;
         left_lane_boundary->at(i).SelfRotate(-origin_heading);
@@ -604,6 +610,7 @@ void OpenSpaceRoiDecider::AddBoundaryKeyPoint(
     // If the current center-lane checking point is an anchor point, then add
     // current left/right curb boundary point as a key point
     if (is_anchor_point) {
+        // 根据当前中心线投影点和左车道边界的距离，计算投影到车道上的点的坐标curb_lane_point
         double point_vec_cos = is_left_curb ? std::cos(current_check_point_heading + M_PI / 2.0)
                                             : std::cos(current_check_point_heading - M_PI / 2.0);
         double point_vec_sin = is_left_curb ? std::sin(current_check_point_heading + M_PI / 2.0)
@@ -616,16 +623,22 @@ void OpenSpaceRoiDecider::AddBoundaryKeyPoint(
         road_width->push_back(current_road_width);
         return;
     }
+    // 前一个点的道路宽度
     double previous_road_width = is_left_curb ? nearby_path.GetRoadLeftWidth(check_point_s - previous_distance_s)
                                               : nearby_path.GetRoadRightWidth(check_point_s - previous_distance_s);
+    // 后一个点的道路宽度
     double next_road_width = is_left_curb ? nearby_path.GetRoadLeftWidth(check_point_s + next_distance_s)
                                           : nearby_path.GetRoadRightWidth(check_point_s + next_distance_s);
+    // 前一个分段角度
     double previous_curb_segment_angle = (current_road_width - previous_road_width) / previous_distance_s;
+    // 后一个分段角度
     double next_segment_angle = (next_road_width - current_road_width) / next_distance_s;
+    // 分段角度差值
     double current_curb_point_delta_theta = next_segment_angle - previous_curb_segment_angle;
     // If the delta angle between the previous curb segment and the next curb
     // segment is large (near a curb corner), then add current curb_lane_point
     // as a key point.
+    // 差值太大，就增加当前点作为一个关键点
     if (std::abs(current_curb_point_delta_theta) > config_.curb_heading_tangent_change_upper_limit()) {
         double point_vec_cos = is_left_curb ? std::cos(current_check_point_heading + M_PI / 2.0)
                                             : std::cos(current_check_point_heading - M_PI / 2.0);
@@ -640,11 +653,18 @@ void OpenSpaceRoiDecider::AddBoundaryKeyPoint(
     }
 }
 
+// 获取停车区域边界，最终会生成多条边界线，这里是终点逻辑
+// parking_info：停车点信息
+// nearby_path：参考线路径？
+// frame：包含了Planning一次计算循环中需要的所有数据
+// roi_parking_boundary：输出的停车边界
+// 如何开启ADEBUG日志？
 bool OpenSpaceRoiDecider::GetParkingBoundary(
         const ParkingInfo &parking_info,
         const hdmap::Path &nearby_path,
         Frame *const frame,
         std::vector<std::vector<common::math::Vec2d>> *const roi_parking_boundary) {
+    // 停车位的四个顶点坐标
     auto left_top = parking_info.corner_points[0];
     ADEBUG << std::fixed << "left_top: " << left_top.x() << ", " << left_top.y();
     auto left_down = parking_info.corner_points[3];
@@ -654,10 +674,12 @@ bool OpenSpaceRoiDecider::GetParkingBoundary(
     auto right_top = parking_info.corner_points[1];
     ADEBUG << std::fixed << "right_top: " << right_top.x() << ", " << right_top.y();
 
+    // 左前点作为原点
     const auto &origin_point = frame->open_space_info().origin_point();
     ADEBUG << std::fixed << "origin_point: " << origin_point.x() << ", " << origin_point.y();
     const auto &origin_heading = frame->open_space_info().origin_heading();
 
+    // 左前点和右前点投影到参考路径上，计算s、l
     double left_top_s = 0.0;
     double left_top_l = 0.0;
     double right_top_s = 0.0;
@@ -668,6 +690,7 @@ bool OpenSpaceRoiDecider::GetParkingBoundary(
         return false;
     }
 
+    // 以左前点为原点，进行坐标平移和旋转变换
     left_top -= origin_point;
     left_top.SelfRotate(-origin_heading);
     left_down -= origin_point;
@@ -699,6 +722,8 @@ bool OpenSpaceRoiDecider::GetParkingBoundary(
     // right_lane_boundary.
     std::vector<double> right_lane_road_width;
 
+    // 获取道路边界，左车道、中间车道、右车道、left_lane_boundary、right_lane_boundary
+    // TODO:把空置停车位添加进来，用来修改扩展右边界
     GetRoadBoundary(
             nearby_path,
             center_line_s,
@@ -712,6 +737,15 @@ bool OpenSpaceRoiDecider::GetParkingBoundary(
             &center_lane_s_right,
             &left_lane_road_width,
             &right_lane_road_width);
+    AINFO << "left_lane_boundary.....";
+    for (int i = 0; i < left_lane_boundary.size(); i++) {
+        AINFO << "i =" << i << ",x=" << left_lane_boundary[i].x() << ",y=" << left_lane_boundary[i].y();
+    }
+    AINFO << "right_lane_boundary.....";
+    for (int i = 0; i < right_lane_boundary.size(); i++) {
+        AINFO << "i =" << i << ",x=" << right_lane_boundary[i].x() << ",y=" << right_lane_boundary[i].y();
+        right_lane_boundary[i].set_y(right_lane_boundary[i].y() - 5.0);
+    }
 
     // If smaller than zero, the parking spot is on the right of the lane
     // Left, right, down or opposite of the boundary is decided when viewing the
@@ -727,6 +761,7 @@ bool OpenSpaceRoiDecider::GetParkingBoundary(
         ADEBUG << "average_l is less than 0 in OpenSpaceROI";
         size_t point_size = right_lane_boundary.size();
         for (size_t i = 0; i < point_size; i++) {
+            // 对道路右边界先还原坐标，再减去中心线坐标，除以道路宽度，再乘以停车位平均l，再转成原点坐标系？
             right_lane_boundary[i].SelfRotate(origin_heading);
             right_lane_boundary[i] += origin_point;
             right_lane_boundary[i] -= center_lane_boundary_right[i];
@@ -898,6 +933,10 @@ bool OpenSpaceRoiDecider::GetParkingBoundary(
     Vec2d vehicle_xy = Vec2d(vehicle_state_.x(), vehicle_state_.y());
     vehicle_xy -= origin_point;
     vehicle_xy.SelfRotate(-origin_heading);
+    // 当前车辆的xy坐标、边界的xy坐标，如果不在这个范围，认为这个边界不生效
+    AINFO << "vehicle xy: " << vehicle_xy.x() << "," << vehicle_xy.y();
+    AINFO << "xy_boundary: " << ROI_xy_boundary[0] << "," << ROI_xy_boundary[1] << "," << ROI_xy_boundary[2] << ","
+          << ROI_xy_boundary[3];
     if (vehicle_xy.x() < ROI_xy_boundary[0] || vehicle_xy.x() > ROI_xy_boundary[1]
         || vehicle_xy.y() < ROI_xy_boundary[2] || vehicle_xy.y() > ROI_xy_boundary[3]) {
         AERROR << "vehicle outside of xy boundary of parking ROI";
@@ -923,12 +962,14 @@ bool OpenSpaceRoiDecider::GetPullOverBoundary(
     double left_top_l = 0.0;
     double right_top_s = 0.0;
     double right_top_l = 0.0;
+    // 左前点和右前点投影到参考线上，根据x、y坐标转换成s、l坐标
     if (!(nearby_path.GetProjection(left_top, &left_top_s, &left_top_l)
           && nearby_path.GetProjection(right_top, &right_top_s, &right_top_l))) {
         AERROR << "fail to get parking spot points' projections on reference line";
         return false;
     }
 
+    // 坐标变换
     left_top -= origin_point;
     left_top.SelfRotate(-origin_heading);
     left_down -= origin_point;
@@ -1002,6 +1043,9 @@ bool OpenSpaceRoiDecider::GetPullOverBoundary(
     Vec2d vehicle_xy = Vec2d(vehicle_state_.x(), vehicle_state_.y());
     vehicle_xy -= origin_point;
     vehicle_xy.SelfRotate(-origin_heading);
+    AINFO << "vehicle xy: " << vehicle_xy.x() << "," << vehicle_xy.y();
+    AINFO << "xy_boundary: " << xy_boundary->at(0) << "," << xy_boundary->at(1) << "," << xy_boundary->at(2) << ","
+          << xy_boundary->at(3);
     if (vehicle_xy.x() < ROI_xy_boundary[0] || vehicle_xy.x() > ROI_xy_boundary[1]
         || vehicle_xy.y() < ROI_xy_boundary[2] || vehicle_xy.y() > ROI_xy_boundary[3]) {
         AERROR << "vehicle outside of xy boundary of parking ROI";
@@ -1206,6 +1250,8 @@ bool OpenSpaceRoiDecider::GetPullOverSpot(
         std::array<common::math::Vec2d, 4> *vertices,
         hdmap::Path *nearby_path) {
     const auto &pull_over_status = injector_->planning_context()->planning_status().pull_over();
+    AINFO << "Pull over position: " << pull_over_status.has_position() << pull_over_status.position().has_x()
+          << pull_over_status.position().has_y() << pull_over_status.has_theta();
     if (!pull_over_status.has_position() || !pull_over_status.position().has_x() || !pull_over_status.position().has_y()
         || !pull_over_status.has_theta()) {
         AERROR << "Pull over position not set in planning context";
@@ -1228,6 +1274,9 @@ bool OpenSpaceRoiDecider::GetPullOverSpot(
     const double pull_over_length_back = pull_over_status.length_back();
     const double pull_over_width_left = pull_over_status.width_left();
     const double pull_over_width_right = pull_over_status.width_right();
+
+    AINFO << "pull_over_length_front" << pull_over_length_front << "," << pull_over_length_back << ","
+          << pull_over_width_left << "," << pull_over_width_right;
 
     Vec2d center_shift_vec(
             (pull_over_length_front - pull_over_length_back) * 0.5,

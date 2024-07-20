@@ -25,50 +25,37 @@ bool StageObstacleAvoid::Init(
     return true;
 }
 StageResult StageObstacleAvoid::Process(const common::TrajectoryPoint& planning_init_point, Frame* frame) {
-    ADEBUG << "stage: StageObstacleAvoid";
+    AINFO << "enter stage: StageObstacleAvoid";
     CHECK_NOTNULL(frame);
     StageResult result;
     auto scenario_context = GetContextAs<ObstacleAvoidParkingContext>();
+
+    // 目标点
+    double target_x = 423949.0;
+    double target_y = 4437765.0;
+    double theta = 0.0;  // 朝向角，这里先写成0度，水平向右
+    auto* pull_over_status = injector_->planning_context()->mutable_planning_status()->mutable_pull_over();
+    auto* pull_over_position = pull_over_status->mutable_position();
+    pull_over_position->set_x(target_x);
+    pull_over_position->set_y(target_y);
+    pull_over_status->set_theta(theta);
+
+    // TODO:计算停车位空间边界
+    auto parking_spaces = scenario_context->parking_spaces;
 
     if (scenario_context->target_parking_spot_id.empty()) {
         return result.SetStageStatus(StageStatusType::ERROR);
     }
 
-    // 从场景上下文信息中获取几个字段的数据，包括：目标停车点id、是否马上预停车、预停车点
-    *(frame->mutable_open_space_info()->mutable_target_parking_spot_id()) = scenario_context->target_parking_spot_id;
-    frame->mutable_open_space_info()->set_pre_stop_rightaway_flag(scenario_context->pre_stop_rightaway_flag);
-    *(frame->mutable_open_space_info()->mutable_pre_stop_rightaway_point())
-            = scenario_context->pre_stop_rightaway_point;
-    auto* reference_lines = frame->mutable_reference_line_info();
-    for (auto& reference_line : *reference_lines) {
-        // 基于障碍物的路径决策对象？
-        auto* path_decision = reference_line.path_decision();
-        if (nullptr == path_decision) {
-            continue;
-        }
-        // 找到目的地（障碍物）
-        auto* dest_obstacle = path_decision->Find(FLAGS_destination_obstacle_id);
-        if (nullptr == dest_obstacle) {
-            continue;
-        }
-        // 对目的地（障碍物）增加纵向决策？
-        ObjectDecisionType decision;
-        decision.mutable_ignore();
-        dest_obstacle->EraseDecision();
-        dest_obstacle->AddLongitudinalDecision("ignore-dest-in-valet-parking", decision);
-    }
     result = ExecuteTaskOnOpenSpace(frame);
-
-    scenario_context->pre_stop_rightaway_flag = frame->open_space_info().pre_stop_rightaway_flag();
-    scenario_context->pre_stop_rightaway_point = frame->open_space_info().pre_stop_rightaway_point();
 
     // 检查自车是否已经停车，这个是进入下一个stage的条件
     if (CheckADCStop(*frame)) {
-        next_stage_ = "BEST_PARKING_PARKING";
+        next_stage_ = "STAGE_PARKING";
         return StageResult(StageStatusType::FINISHED);
     }
     if (result.HasError()) {
-        AERROR << "StopSignUnprotectedStagePreStop planning error";
+        AERROR << "stage obstacle avoid run error...";
         return result.SetStageStatus(StageStatusType::ERROR);
     }
 

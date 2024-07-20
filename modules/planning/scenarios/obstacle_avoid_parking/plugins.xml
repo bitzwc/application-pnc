@@ -1,5 +1,6 @@
 <library path="modules/planning/scenarios/obstacle_avoid_parking/libobstacle_avoid_parking.so">
     <class type="apollo::planning::ScenarioObstacleAvoidParking" base_class="apollo::planning::Scenario"></class>
+    <!-- <class type="apollo::planning::StageApproachingParkingSpot" base_class="apollo::planning::Stage"></class> -->
     <class type="apollo::planning::StageObstacleAvoid" base_class="apollo::planning::Stage"></class>
     <class type="apollo::planning::StageParking" base_class="apollo::planning::Stage"></class>
 </library>

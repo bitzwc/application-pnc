@@ -26,6 +26,7 @@ namespace planning {
 struct ObstacleAvoidParkingContext : public ScenarioContext {
     ObstacleAvoidParkingConfig scenario_config;
     std::string target_parking_spot_id;
+    std::vector<apollo::hdmap::ParkingSpaceInfoConstPtr> parking_spaces;
     bool pre_stop_rightaway_flag = false;
     hdmap::MapPathPoint pre_stop_rightaway_point;
 };
@@ -54,6 +55,7 @@ private:
             const hdmap::Path& nearby_path,
             const double parking_start_range,
             const hdmap::PathOverlap& parking_space_overlap);
+    bool GetTargetParkingSpotId(std::string& target_parking_spot_id, const Frame& frame);
 
 private:
     bool init_ = false;                    // 是否初始化

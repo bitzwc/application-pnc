@@ -1,1 +1,2 @@
 roi_type: PARKING
+roi_longitudinal_range_start: 45

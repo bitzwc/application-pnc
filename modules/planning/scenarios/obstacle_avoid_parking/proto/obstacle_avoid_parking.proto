@@ -10,5 +10,5 @@ message ObstacleAvoidParkingConfig {
   optional double max_valid_stop_distance = 2 [default = 1.0];  // meter
 
   // 离障碍物的距离小于这个值，进入该场景
-  optional double min_obstacle_distance = 3 [default = 1.0]; //米
+  optional double close_to_obstacle_distance = 3 [default = 1.0]; //米
 }

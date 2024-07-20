@@ -15,11 +15,13 @@ apollo_plugin(
     name = "libobstacle_avoid_parking.so",
     srcs = [
         "scenario_obstacle_avoid_parking.cc",
+        "stage_approaching_parking_spot.cc",
         "stage_obstacle_avoid.cc",
         "stage_parking.cc",
     ],
     hdrs = [
         "scenario_obstacle_avoid_parking.h",
+        "stage_approaching_parking_spot.h",
         "stage_obstacle_avoid.h",
         "stage_parking.h",
     ],
